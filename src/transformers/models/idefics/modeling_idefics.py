@@ -818,7 +818,7 @@ class IdeficsGatedCrossAttentionLayer(nn.Module):
             output_attentions=output_attentions,
         )
         hidden_states = nn.functional.dropout(hidden_states, p=self.config, training=self.training)
-        hidden_states = residual + 0. * self.act_cross_attn(self.alpha_cross_attn) * hidden_states
+        hidden_states = residual + self.act_cross_attn(self.alpha_cross_attn) * hidden_states
 
         # Fully Connected
         residual = hidden_states
@@ -1137,9 +1137,9 @@ class IdeficsModel(IdeficsPreTrainedModel):
         else:
             position_ids = position_ids.view(-1, seq_length).long()
 
-        if pixel_values is None and image_embeddings is None:
-            # Hack to use the model in full language modeling mode. The value 224 is hard-coded.
-            pixel_values = torch.ones(batch_size, 1, 3, 224, 224)
+        # if pixel_values is None and image_embeddings is None:
+        #     # Hack to use the model in full language modeling mode. The value 224 is hard-coded.
+        #     pixel_values = torch.ones(batch_size, 1, 3, 224, 224)
         if pixel_values is not None and image_embeddings is not None:
             raise ValueError("You cannot specify both pixel_values and image_embeddings at the same time")
         elif pixel_values is not None:
@@ -1166,8 +1166,8 @@ class IdeficsModel(IdeficsPreTrainedModel):
             image_hidden_states = self.perceiver_resampler(image_hidden_states)
         image_seq_len, image_hidden_size = image_hidden_states.size(1), image_hidden_states.size(2)
         image_hidden_states = image_hidden_states.view(batch_size, num_images * image_seq_len, image_hidden_size)
-        # Hack to use the model in full language modeling mode
-        image_attention_mask = torch.zeros(batch_size, seq_length, 1, dtype=torch.long, device=image_hidden_states.device)
+        # # Hack to use the model in full language modeling mode
+        # image_attention_mask = torch.zeros(batch_size, seq_length, 1, dtype=torch.long, device=image_hidden_states.device)
         # Make image_attention_mask compatible with hidden states
         text_seq_len = image_attention_mask.size(1)
         image_attention_mask = image_attention_mask.unsqueeze(-1)
