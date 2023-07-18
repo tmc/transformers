@@ -20,6 +20,7 @@
 """ PyTorch LLaMA model."""
 from typing import List, Optional, Tuple, Union
 
+import torch.nn.functional as F
 import torch
 import torch.utils.checkpoint
 from torch import nn
@@ -43,6 +44,12 @@ from transformers.deepspeed import is_deepspeed_zero3_enabled
 logger = logging.get_logger(__name__)
 
 _CONFIG_FOR_DOC = "IdeficsConfig"
+
+IDEFICS_PRETRAINED_MODEL_ARCHIVE_LIST = [
+    "HuggingFaceM4/idefics-9b",
+    "HuggingFaceM4/idefics-80b",
+    # See all ViLT models at https://huggingface.co/models?filter=idefics
+]
 
 
 def deepspeed_gathered_parameters_context_manager(params, modify=True):
@@ -1002,7 +1009,7 @@ class IdeficsModel(IdeficsPreTrainedModel):
         # XXX: this is unsafe - needs to be fixed
         vision_model_params = dict(id2label={}, label2id={})
         clip_config = CLIPConfig.from_pretrained(config.vision_model_name, **vision_model_params)
-        #print(clip_config)
+        #print(clip_config.vision_config)
         self.vision_model = CLIPVisionTransformer(clip_config.vision_config)
 
         # Perceiver Resampler
@@ -1139,8 +1146,17 @@ class IdeficsModel(IdeficsPreTrainedModel):
             pixel_values = pixel_values.to(dtype=self.dtype, device=input_ids.device)  # fp16 compatibility
             batch_size, num_images = pixel_values.size(0), pixel_values.size(1)
             pixel_values = pixel_values.contiguous().view(batch_size * num_images, *pixel_values.shape[2:])
+
+            # print(pixel_values.shape)
+            # print(pixel_values)
+
+
             # Get sequence from the vision encoder
             image_hidden_states = self.vision_model(pixel_values=pixel_values).last_hidden_state
+
+            # print(image_hidden_states)
+            # print(image_hidden_states.shape)
+
         elif image_embeddings is not None:
             batch_size, num_images, image_seq_len, image_hidden_size = image_embeddings.size()
             image_hidden_states = image_embeddings.to(dtype=self.dtype, device=input_ids.device)
